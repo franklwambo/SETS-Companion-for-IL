@@ -1,0 +1,492 @@
+<channel version="3.5.1">
+  <id>05169097-ac5e-405a-817c-ca5ce1af6b4f</id>
+  <nextMetaDataId>2</nextMetaDataId>
+  <name>SETSILCompanion_ORU</name>
+  <description></description>
+  <revision>2</revision>
+  <sourceConnector version="3.5.1">
+    <metaDataId>0</metaDataId>
+    <name>sourceConnector</name>
+    <properties class="com.mirth.connect.connectors.tcp.TcpReceiverProperties" version="3.5.1">
+      <pluginProperties/>
+      <listenerConnectorProperties version="3.5.1">
+        <host>0.0.0.0</host>
+        <port>6669</port>
+      </listenerConnectorProperties>
+      <sourceConnectorProperties version="3.5.1">
+        <responseVariable>Auto-generate (After source transformer)</responseVariable>
+        <respondAfterProcessing>true</respondAfterProcessing>
+        <processBatch>false</processBatch>
+        <firstResponse>true</firstResponse>
+        <processingThreads>1</processingThreads>
+        <resourceIds class="linked-hash-map">
+          <entry>
+            <string>Default Resource</string>
+            <string>[Default Resource]</string>
+          </entry>
+        </resourceIds>
+        <queueBufferSize>1000</queueBufferSize>
+      </sourceConnectorProperties>
+      <transmissionModeProperties class="com.mirth.connect.model.transmission.framemode.FrameModeProperties">
+        <pluginPointName>Basic</pluginPointName>
+        <startOfMessageBytes></startOfMessageBytes>
+        <endOfMessageBytes></endOfMessageBytes>
+      </transmissionModeProperties>
+      <serverMode>true</serverMode>
+      <remoteAddress></remoteAddress>
+      <remotePort></remotePort>
+      <overrideLocalBinding>false</overrideLocalBinding>
+      <reconnectInterval>5000</reconnectInterval>
+      <receiveTimeout>0</receiveTimeout>
+      <bufferSize>65536</bufferSize>
+      <maxConnections>10</maxConnections>
+      <keepConnectionOpen>true</keepConnectionOpen>
+      <dataTypeBinary>false</dataTypeBinary>
+      <charsetEncoding>DEFAULT_ENCODING</charsetEncoding>
+      <respondOnNewConnection>0</respondOnNewConnection>
+      <responseAddress></responseAddress>
+      <responsePort></responsePort>
+    </properties>
+    <transformer version="3.5.1">
+      <elements>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+          <name>ParseObs</name>
+          <sequenceNumber>0</sequenceNumber>
+          <script>var facility_mflcode=parseInt(msg[&apos;MESSAGE_HEADER&apos;][&apos;SENDING_FACILITY&apos;]);
+var created_at=msg[&apos;MESSAGE_HEADER&apos;][&apos;MESSAGE_DATETIME&apos;]
+
+//var created_at = DateUtil.convertDate(&quot;yyyyMMdd&quot;, &quot;yyyy-MM-dd&quot;, msg[&apos;MESSAGE_HEADER&apos;][&apos;MESSAGE_DATETIME&apos;]);
+
+$c(&apos;facility_mflcode&apos;,facility_mflcode);
+$c(&apos;created_at&apos;,created_at);
+
+
+var given_name=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;PATIENT_NAME&apos;][&apos;FIRST_NAME&apos;];
+var middle_name=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;PATIENT_NAME&apos;][&apos;MIDDLE_NAME&apos;];
+var family_name=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;PATIENT_NAME&apos;][&apos;LAST_NAME&apos;];
+
+//var mother_firstname=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;MOTHER_NAME&apos;][&apos;FIRST_NAME&apos;];
+//var mother_middlename=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;MOTHER_NAME&apos;][&apos;MIDDLE_NAME&apos;];
+//var mother_lastname=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;MOTHER_NAME&apos;][&apos;LAST_NAME&apos;];
+
+//var birthdate = DateUtil.convertDate(&quot;yyyyMMdd&quot;, &quot;yyyy-MM-dd&quot;, msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;DATE_OF_BIRTH&apos;]);
+var marital_status=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;MARITAL_STATUS&apos;];
+var sex=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;SEX&apos;];
+
+$c(&apos;given_name&apos;,given_name);
+$c(&apos;middle_name&apos;,middle_name);
+$c(&apos;family_name&apos;,family_name);
+
+$c(&apos;PIDArray&apos;,[]);
+var identifier_type_id=0;
+
+var Internal_Identifiers=msg[&apos;PATIENT_IDENTIFICATION&apos;][&apos;INTERNAL_PATIENT_ID&apos;];
+
+Internal_Identifiers.forEach(function(Internal_Identifier)
+{
+
+	var P_Array = {};
+
+    P_Array.identifier=Internal_Identifier[&apos;ID&apos;];
+
+    //logger.info(Internal_Identifier[&apos;IDENTIFIER_TYPE&apos;]);
+	//logger.info(&quot;Internal_Identifier[&apos;IDENTIFIER_TYPE&apos;]: &quot;+ Internal_Identifier[&apos;IDENTIFIER_TYPE&apos;])
+	switch(Internal_Identifier[&apos;IDENTIFIER_TYPE&apos;])
+	{
+		case &quot;CCC_NUMBER&quot;:
+			P_Array.identifier_type_id=&apos;1&apos;;
+			break;
+
+
+
+		case &quot;HDSS_ID&quot;:
+			P_Array.identifier_type_id=&apos;3&apos;;
+			break;
+
+		case &quot;PMTCT_NUMBER&quot;:
+			P_Array.identifier_type_id=&apos;10&apos;;
+			break;
+
+		case &quot;HTS_NUMBER&quot;:
+			P_Array.identifier_type_id=&apos;2&apos;;
+			break;
+
+
+			default:
+			break;
+	}
+
+     $c(&apos;PIDArray&apos;).push(P_Array);
+}
+)
+
+
+//parsing the clinical events recorded
+
+
+var obs_code=0;
+var obs_name=&quot;&quot;;
+
+
+$c(&apos;OBSArray&apos;,[]);
+var ORU_Events=msg[&apos;OBSERVATION_RESULT&apos;];
+
+
+
+ORU_Events.forEach(function(ORU_Event)
+{
+	
+	var O_Array = {};
+   
+   
+obs_name=ORU_Event[&apos;OBSERVATION_IDENTIFIER&apos;];
+ 
+      	
+	O_Array.obs_value_text=ORU_Event[&apos;OBSERVATION_VALUE&apos;];
+	//O_Array.obs_name=ORU_Event[&apos;OBSERVATION_IDENTIFIER&apos;];
+	O_Array.obs_datetime=ORU_Event[&apos;OBSERVATION_DATETIME&apos;];
+	O_Array.obs_value_unit=ORU_Event[&apos;UNITS&apos;];
+	//O_Array.obs_code=&apos;400&apos;;
+     //logger.info(ORU_Event[&apos;OBSERVATION_IDENTIFIER&apos;]);
+  
+	//O_Array.obs_code=&apos;401&apos;;
+
+	//logger.info(O_Array.obs_code);
+
+	
+ if
+	(obs_name==&quot;WHO_STAGE&quot; || 
+	obs_name==&quot;HIV_CARE_INITIATION&quot; || 
+	obs_name==&quot;IS_PREGNANT&quot; ||
+	obs_name==&quot;COTRIMOXAZOLE_START&quot; ||
+	obs_name==&quot;ART_START&quot; ||
+	obs_name==&quot;CHILD_BIRTH&quot; ||
+	obs_name==&quot;PMTCT_INITIATION&quot; ||
+	obs_name==&quot;TB_TREATMENT_START_DATE&quot; ||
+	obs_name==&quot;TB_TREATMENT_COMPLETE_DATE&quot;
+	)
+
+	{
+	
+     switch(obs_name)
+	{
+		
+		case &quot;WHO_STAGE&quot;:
+		O_Array.obs_code=&apos;404&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+		
+		case &quot;IS_PREGNANT&quot;:
+		O_Array.obs_code=&apos;401&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+		
+			
+
+		case &quot;HIV_CARE_INITIATION&quot;:
+		O_Array.obs_code=&apos;400&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+		case &quot;COTRIMOXAZOLE_START&quot;:
+		O_Array.obs_code=&apos;403&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+
+		case &quot;ART_START&quot;:
+		O_Array.obs_code=&apos;402&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+		case &quot;PMTCT_INITIATION&quot;:
+		O_Array.obs_code=&apos;407&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+		
+		case &quot;ART_START&quot;:
+		O_Array.obs_code=&apos;402&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+
+         case &quot;CHILD_BIRTH&quot;:
+		O_Array.obs_code=&apos;409&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+		case &quot;TB_TREATMENT_START_DATE&quot;:
+		O_Array.obs_code=&apos;411&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+		
+
+		case &quot;TB_TREATMENT_COMPLETE_DATE&quot;:
+		O_Array.obs_code=&apos;412&apos;;
+		//logger.info(O_Array.obs_code);
+		break;
+
+		
+			
+
+			//logger.info(O_Array.obs_code);
+
+			default:
+			break;
+
+	}
+
+	
+
+
+
+	
+ $c(&apos;OBSArray&apos;).push(O_Array);
+
+}
+
+
+}
+	
+
+     
+	
+
+
+)
+
+
+
+
+
+var current_personid=0;
+var last_PID_entered=GetMaxPersonId();
+
+//var dbConn = DatabaseConnectionFactory.createDatabaseConnection(&apos;com.mysql.jdbc.Driver&apos;,&apos;jdbc:mysql://kecl-his-014293:3306/sets_surveillance&apos;,&apos;root&apos;,&apos;root&apos;);
+
+var  insert_sql = &quot;INSERT INTO person&quot;;
+	insert_sql += &quot;(sex, date_created, facility_mflcode)&quot;;
+	insert_sql += &quot;VALUES (?,?,?)&quot;;
+	
+	var params3 = new java.util.ArrayList();
+	params3.add($(&apos;sex&apos;));
+	//params3.add($(&apos;birthdate&apos;));
+	params3.add($(&apos;created_at&apos;));
+	params3.add($(&apos;facility_mflcode&apos;));
+	
+
+    var result = SgetDbConn().executeUpdate(insert_sql, params3);
+
+
+current_personid=parseInt(last_PID_entered) + 1;
+
+
+//saving identifiers
+var sql2 = &quot;INSERT INTO person_identifier (person_id,identifier_type_id, identifier,date_created, facility_code) VALUES (?,?,?,?,?)&quot;;
+
+
+
+for each (pid in $(&apos;PIDArray&apos;))
+ {
+//current_personid=parseInt(last_PID_entered) + 1;
+  var params3 = new Packages.java.util.ArrayList();
+  params3.add(current_personid);
+  params3.add(pid.identifier_type_id);
+  params3.add(pid.identifier);
+  params3.add($(&apos;created_at&apos;));
+  params3.add($(&apos;facility_mflcode&apos;));
+  
+  try
+  
+  {
+  	var result3 = SgetDbConn().executeUpdate(sql2, params3);
+  } 
+  
+  catch(err) 
+  
+  {
+  	//logger.info(err)
+  }
+
+
+ }
+
+//ensure that only SETS events are written to the database
+
+
+   
+
+     var sql3 = &quot;INSERT INTO person_care (person_id,care_code,care_value_text,care_datetime,facility_mflcode,date_created) VALUES (?,?, ?, ?, ?,?)&quot;;
+ 
+ for each (obs in $(&apos;OBSArray&apos;))
+ {
+
+       	
+  var params3 = new Packages.java.util.ArrayList();
+  params3.add(current_personid);
+  params3.add(obs.obs_code);
+  params3.add(obs.obs_value_text);
+  params3.add(obs.obs_datetime);
+  params3.add($(&apos;facility_mflcode&apos;));
+ params3.add($(&apos;created_at&apos;));
+
+   var result3 = SgetDbConn().executeUpdate(sql3, params3);
+
+   
+
+ }// the for each statement ends here</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+      </elements>
+      <inboundTemplate encoding="base64"></inboundTemplate>
+      <outboundTemplate encoding="base64"></outboundTemplate>
+      <inboundDataType>JSON</inboundDataType>
+      <outboundDataType>JSON</outboundDataType>
+      <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
+        <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="3.5.1">
+          <splitType>JavaScript</splitType>
+          <batchScript></batchScript>
+        </batchProperties>
+      </inboundProperties>
+      <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
+        <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="3.5.1">
+          <splitType>JavaScript</splitType>
+          <batchScript></batchScript>
+        </batchProperties>
+      </outboundProperties>
+    </transformer>
+    <filter version="3.5.1">
+      <elements/>
+    </filter>
+    <transportName>TCP Listener</transportName>
+    <mode>SOURCE</mode>
+    <enabled>true</enabled>
+    <waitForPrevious>true</waitForPrevious>
+  </sourceConnector>
+  <destinationConnectors>
+    <connector version="3.5.1">
+      <metaDataId>1</metaDataId>
+      <name>Destination 1</name>
+      <properties class="com.mirth.connect.connectors.js.JavaScriptDispatcherProperties" version="3.5.1">
+        <pluginProperties/>
+        <destinationConnectorProperties version="3.5.1">
+          <queueEnabled>false</queueEnabled>
+          <sendFirst>false</sendFirst>
+          <retryIntervalMillis>10000</retryIntervalMillis>
+          <regenerateTemplate>false</regenerateTemplate>
+          <retryCount>0</retryCount>
+          <rotate>false</rotate>
+          <includeFilterTransformer>false</includeFilterTransformer>
+          <threadCount>1</threadCount>
+          <threadAssignmentVariable></threadAssignmentVariable>
+          <validateResponse>false</validateResponse>
+          <resourceIds class="linked-hash-map">
+            <entry>
+              <string>Default Resource</string>
+              <string>[Default Resource]</string>
+            </entry>
+          </resourceIds>
+          <queueBufferSize>1000</queueBufferSize>
+          <reattachAttachments>true</reattachAttachments>
+        </destinationConnectorProperties>
+        <script>return;</script>
+      </properties>
+      <transformer version="3.5.1">
+        <elements/>
+        <inboundDataType>JSON</inboundDataType>
+        <outboundDataType>JSON</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="3.5.1">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="3.5.1">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </outboundProperties>
+      </transformer>
+      <responseTransformer version="3.5.1">
+        <elements/>
+        <inboundDataType>JSON</inboundDataType>
+        <outboundDataType>JSON</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="3.5.1">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties" version="3.5.1">
+          <batchProperties class="com.mirth.connect.plugins.datatypes.json.JSONBatchProperties" version="3.5.1">
+            <splitType>JavaScript</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+        </outboundProperties>
+      </responseTransformer>
+      <filter version="3.5.1">
+        <elements/>
+      </filter>
+      <transportName>JavaScript Writer</transportName>
+      <mode>DESTINATION</mode>
+      <enabled>true</enabled>
+      <waitForPrevious>true</waitForPrevious>
+    </connector>
+  </destinationConnectors>
+  <preprocessingScript>// Modify the message variable below to pre process data
+return message;</preprocessingScript>
+  <postprocessingScript>// This script executes once after a message has been processed
+// Responses returned from here will be stored as &quot;Postprocessor&quot; in the response map
+return;</postprocessingScript>
+  <deployScript>// This script executes once when the channel is deployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</deployScript>
+  <undeployScript>// This script executes once when the channel is undeployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</undeployScript>
+  <properties version="3.5.1">
+    <clearGlobalChannelMap>true</clearGlobalChannelMap>
+    <messageStorageMode>RAW</messageStorageMode>
+    <encryptData>false</encryptData>
+    <removeContentOnCompletion>true</removeContentOnCompletion>
+    <removeOnlyFilteredOnCompletion>false</removeOnlyFilteredOnCompletion>
+    <removeAttachmentsOnCompletion>false</removeAttachmentsOnCompletion>
+    <initialState>STARTED</initialState>
+    <storeAttachments>false</storeAttachments>
+    <metaDataColumns>
+      <metaDataColumn>
+        <name>SOURCE</name>
+        <type>STRING</type>
+        <mappingName>mirth_source</mappingName>
+      </metaDataColumn>
+      <metaDataColumn>
+        <name>TYPE</name>
+        <type>STRING</type>
+        <mappingName>mirth_type</mappingName>
+      </metaDataColumn>
+    </metaDataColumns>
+    <attachmentProperties version="3.5.1">
+      <type>None</type>
+      <properties/>
+    </attachmentProperties>
+    <resourceIds class="linked-hash-map">
+      <entry>
+        <string>Default Resource</string>
+        <string>[Default Resource]</string>
+      </entry>
+    </resourceIds>
+  </properties>
+  <exportData>
+    <metadata>
+      <enabled>false</enabled>
+      <lastModified>
+        <time>1558433671096</time>
+        <timezone>Africa/Nairobi</timezone>
+      </lastModified>
+      <pruningSettings>
+        <archiveEnabled>true</archiveEnabled>
+      </pruningSettings>
+    </metadata>
+  </exportData>
+</channel>
